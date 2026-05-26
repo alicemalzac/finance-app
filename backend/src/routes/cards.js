@@ -10,6 +10,15 @@ router.get('/', (req, res) => {
   res.json(db.prepare('SELECT * FROM credit_cards').all());
 });
 
+router.post('/', (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: 'Nome obrigatório' });
+  const existing = db.prepare('SELECT id FROM credit_cards WHERE name=?').get(name);
+  if (existing) return res.json(existing);
+  const result = db.prepare('INSERT INTO credit_cards (name) VALUES (?)').run(name);
+  res.status(201).json({ id: result.lastInsertRowid, name });
+});
+
 // Metas do cartão por mês
 router.get('/goals/:monthId', (req, res) => {
   const { monthId } = req.params;
