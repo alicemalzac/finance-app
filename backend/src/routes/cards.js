@@ -71,10 +71,40 @@ router.post('/transactions/:monthId', (req, res) => {
   const { monthId } = req.params;
   const { card_id, store, amount, installment_current, installment_total, category, subcategory, payment_type, end_month } = req.body;
   if (!card_id || !store || amount == null) return res.status(400).json({ error: 'card_id, store e amount são obrigatórios' });
+
+  const total = Number(installment_total) || 1;
+
+  if (payment_type === 'parcelado' && total > 1) {
+    const startRow = db.prepare('SELECT year, month FROM months WHERE id=?').get(monthId);
+    if (!startRow) return res.status(404).json({ error: 'Mês não encontrado' });
+
+    const insert = db.prepare(`
+      INSERT INTO card_transactions (card_id, month_id, store, amount, installment_current, installment_total, category, subcategory, payment_type, end_month)
+      VALUES (?,?,?,?,?,?,?,?,?,?)
+    `);
+
+    const ids = [];
+    for (let i = 1; i <= total; i++) {
+      const offset = startRow.month + i - 2;
+      const targetYear = startRow.year + Math.floor(offset / 12);
+      const targetMonth = (offset % 12) + 1;
+
+      let targetRow = db.prepare('SELECT id FROM months WHERE year=? AND month=?').get(targetYear, targetMonth);
+      if (!targetRow) {
+        const r = db.prepare('INSERT INTO months (year, month, salary, extra, philippe, previous_balance) VALUES (?,?,0,0,0,0)').run(targetYear, targetMonth);
+        targetRow = { id: r.lastInsertRowid };
+      }
+
+      const r = insert.run(card_id, targetRow.id, store, amount, i, total, category || null, subcategory || null, payment_type, end_month || null);
+      ids.push(r.lastInsertRowid);
+    }
+    return res.status(201).json({ id: ids[0], ids });
+  }
+
   const result = db.prepare(`
     INSERT INTO card_transactions (card_id, month_id, store, amount, installment_current, installment_total, category, subcategory, payment_type, end_month)
     VALUES (?,?,?,?,?,?,?,?,?,?)
-  `).run(card_id, monthId, store, amount, installment_current ?? 1, installment_total ?? 1, category, subcategory, payment_type ?? 'avista', end_month);
+  `).run(card_id, monthId, store, amount, Number(installment_current) || 1, total, category || null, subcategory || null, payment_type ?? 'avista', end_month || null);
   res.status(201).json({ id: result.lastInsertRowid });
 });
 

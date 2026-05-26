@@ -21,6 +21,7 @@ const FIXED_CATEGORIES_ORDER = [
 export default function Dashboard() {
   const { year, setYear, month, setMonth } = useLatestMonth();
   const [data, setData] = useState(null);
+  const [varTotal, setVarTotal] = useState(0);
   const [editing, setEditing] = useState(null);
   const [editVal, setEditVal] = useState('');
   const [loading, setLoading] = useState(true);
@@ -33,6 +34,14 @@ export default function Dashboard() {
     try {
       const res = await api.get(`/months/${year}/${month}`);
       setData(res.data);
+      const [cardRes, cashRes] = await Promise.all([
+        api.get(`/cards/transactions/${res.data.id}`),
+        api.get(`/cash/${res.data.id}`),
+      ]);
+      setVarTotal(
+        cardRes.data.reduce((s, t) => s + t.amount, 0) +
+        cashRes.data.reduce((s, t) => s + t.amount, 0)
+      );
     } catch {
       setData(null);
     }
@@ -167,19 +176,46 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Barra de saldo */}
-      <div style={{ marginTop: 20, background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-          <span style={{ fontSize: 14, color: '#64748b' }}>Comprometimento da renda</span>
-          <span style={{ fontSize: 14, fontWeight: 600, color: data.total_fixed / totalIncome > 0.9 ? '#ef4444' : '#22c55e' }}>
-            {totalIncome > 0 ? Math.round((data.total_fixed / totalIncome) * 100) : 0}%
-          </span>
-        </div>
-        <div style={{ background: '#f1f5f9', borderRadius: 8, height: 10, overflow: 'hidden' }}>
-          <div style={{ height: '100%', borderRadius: 8, background: data.total_fixed / totalIncome > 0.9 ? '#ef4444' : '#22c55e',
-            width: `${Math.min(100, totalIncome > 0 ? (data.total_fixed / totalIncome) * 100 : 0)}%`, transition: 'width 0.3s' }} />
-        </div>
-      </div>
+      {/* 50/30/20 */}
+      {(() => {
+        const base = (data.salary || 0) + (data.extra || 0) + (data.philippe || 0);
+        const buckets = [
+          { label: 'Necessidades', pct: 50, actual: data.total_fixed, color: '#3b82f6', hint: 'Contas fixas' },
+          { label: 'Desejos', pct: 30, actual: varTotal, color: '#f59e0b', hint: 'Cartões + dinheiro' },
+          { label: 'Poupança', pct: 20, actual: Math.max(0, base - data.total_fixed - varTotal), color: '#22c55e', hint: 'Sobra do mês' },
+        ];
+        return (
+          <div style={{ marginTop: 20, background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h2 style={{ margin: 0, fontSize: 16, color: '#1e293b' }}>Regra 50/30/20</h2>
+              <span style={{ fontSize: 12, color: '#94a3b8' }}>Base: {formatCurrency(base)} (salário + extras)</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {buckets.map(b => {
+                const target = base * (b.pct / 100);
+                const used = base > 0 ? Math.min(100, (b.actual / target) * 100) : 0;
+                const over = b.actual > target;
+                return (
+                  <div key={b.label}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>{b.label} <span style={{ fontWeight: 400, color: '#94a3b8' }}>({b.pct}% — {b.hint})</span></span>
+                      <span style={{ fontSize: 13, color: over ? '#ef4444' : '#64748b' }}>
+                        {formatCurrency(b.actual)} / {formatCurrency(target)}
+                        <span style={{ marginLeft: 6, fontWeight: 700, color: over ? '#ef4444' : '#22c55e' }}>
+                          {base > 0 ? `${Math.round((b.actual / target) * 100)}%` : '—'}
+                        </span>
+                      </span>
+                    </div>
+                    <div style={{ background: '#f1f5f9', borderRadius: 6, height: 8, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', borderRadius: 6, width: `${used}%`, background: over ? '#ef4444' : b.color, transition: 'width 0.3s' }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

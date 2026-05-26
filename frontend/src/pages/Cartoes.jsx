@@ -4,8 +4,13 @@ import { formatCurrency, MONTHS_PT } from '../utils/format';
 import MonthSelector from '../components/MonthSelector';
 import { useLatestMonth } from '../utils/useLatestMonth';
 
+const CATEGORIES = ['Mercado','Streamings','Beleza','Farmácia','Gasolina','Pet','Estacionamento','Restaurantes',
+  'Compras','Consulta Médica','Uber','Ifood','Atividade Física','Vestuário','Suplementos','Viagem',
+  'Educação/Profissional','Presentes','Taxas','Extra','????'];
+const PAYMENT_TYPES = ['avista', 'parcelado', 'recorrente'];
 const paymentLabel = { avista: 'À vista', parcelado: 'Parcelado', recorrente: 'Recorrente' };
 const paymentColor = { avista: '#64748b', parcelado: '#f59e0b', recorrente: '#3b82f6' };
+const emptyForm = { card_id: '', store: '', amount: '', installment_current: 1, installment_total: 1, category: '', subcategory: '', payment_type: 'avista', end_month: '' };
 
 export default function Cartoes() {
   const { year, setYear, month, setMonth } = useLatestMonth();
@@ -15,8 +20,12 @@ export default function Cartoes() {
   const [totals, setTotals] = useState({});
   const [txByCard, setTxByCard] = useState({});
   const [selectedCard, setSelectedCard] = useState('all');
+  const [filter, setFilter] = useState('');
   const [editGoal, setEditGoal] = useState(null);
   const [goalVal, setGoalVal] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -48,18 +57,33 @@ export default function Cartoes() {
     load();
   };
 
-  const getGoal = (cardId) => goals.find(g => g.card_id === cardId);
+  const openAdd = () => { setForm(emptyForm); setEditId(null); setShowForm(true); };
+  const openEdit = tx => {
+    setForm({ card_id: tx.card_id, store: tx.store, amount: tx.amount,
+      installment_current: tx.installment_current, installment_total: tx.installment_total,
+      category: tx.category || '', subcategory: tx.subcategory || '',
+      payment_type: tx.payment_type, end_month: tx.end_month || '' });
+    setEditId(tx.id); setShowForm(true);
+  };
+  const save = async () => {
+    if (!form.card_id || !form.store || !form.amount) return;
+    if (editId) await api.put(`/cards/transactions/${editId}`, form);
+    else await api.post(`/cards/transactions/${monthId}`, form);
+    setShowForm(false); load();
+  };
+  const del = async id => { if (!confirm('Remover?')) return; await api.delete(`/cards/transactions/${id}`); load(); };
+
+  const getGoal = cardId => goals.find(g => g.card_id === cardId);
 
   if (loading) return <div style={{ padding: 40, color: '#64748b' }}>Carregando...</div>;
 
   const grandTotal = Object.values(totals).reduce((s, v) => s + v, 0);
 
-  const filteredTx = selectedCard === 'all'
-    ? cards.flatMap(c => (txByCard[c.id] || []).map(t => ({ ...t, card_name: c.name })))
-    : (txByCard[Number(selectedCard)] || []).map(t => {
-        const c = cards.find(c => c.id === Number(selectedCard));
-        return { ...t, card_name: c?.name };
-      });
+  const allTx = cards.flatMap(c => (txByCard[c.id] || []).map(t => ({ ...t, card_name: c.name })));
+  const filteredTx = (selectedCard === 'all' ? allTx : (txByCard[Number(selectedCard)] || []).map(t => {
+    const c = cards.find(c => c.id === Number(selectedCard));
+    return { ...t, card_name: c?.name };
+  })).filter(t => !filter || t.store.toLowerCase().includes(filter.toLowerCase()) || (t.category || '').toLowerCase().includes(filter.toLowerCase()));
 
   const filteredTotal = filteredTx.reduce((s, t) => s + t.amount, 0);
 
@@ -70,7 +94,7 @@ export default function Cartoes() {
         <MonthSelector year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
       </div>
 
-      {/* Cards resumo */}
+      {/* Resumo por cartão */}
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cards.length + 1}, 1fr)`, gap: 16, marginBottom: 24 }}>
         {cards.map(card => {
           const total = totals[card.id] ?? 0;
@@ -81,9 +105,7 @@ export default function Cartoes() {
             <div key={card.id} style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', borderTop: `3px solid ${color}` }}>
               <div style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>💳 {card.name}</div>
               <div style={{ fontSize: 24, fontWeight: 700, color, margin: '6px 0 4px' }}>{formatCurrency(total)}</div>
-              <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>
-                Meta: {goal ? formatCurrency(goal.goal_amount) : '—'}
-              </div>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>Meta: {goal ? formatCurrency(goal.goal_amount) : '—'}</div>
               {pct !== null && (
                 <div>
                   <div style={{ background: '#f1f5f9', borderRadius: 4, height: 6 }}>
@@ -116,33 +138,40 @@ export default function Cartoes() {
         </div>
       </div>
 
-      {/* Lançamentos com filtro por cartão */}
+      {/* Lançamentos com CRUD */}
       <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', marginBottom: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #f1f5f9', flexWrap: 'wrap', gap: 10 }}>
           <h2 style={{ margin: 0, fontSize: 16, color: '#1e293b' }}>Lançamentos</h2>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <span style={{ fontSize: 13, color: '#64748b' }}>
-              Total: <strong style={{ color: '#ef4444' }}>{formatCurrency(filteredTotal)}</strong>
-            </span>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <select value={selectedCard} onChange={e => setSelectedCard(e.target.value)}
-              style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, background: '#fff' }}>
+              style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, background: '#fff' }}>
               <option value="all">Todos os cartões</option>
               {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
+            <input value={filter} onChange={e => setFilter(e.target.value)} placeholder="Buscar..."
+              style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, width: 140 }} />
+            <span style={{ fontSize: 13, color: '#64748b' }}>
+              Total: <strong style={{ color: '#ef4444' }}>{formatCurrency(filteredTotal)}</strong>
+            </span>
+            <button onClick={openAdd}
+              style={{ padding: '6px 14px', background: '#38bdf8', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+              + Novo
+            </button>
           </div>
         </div>
+
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                {['Cartão','Estabelecimento','Valor','Forma','Parcela','Categoria','Encerra'].map(h => (
+                {['Cartão','Estabelecimento','Valor','Forma','Parcela','Categoria','Encerra',''].map(h => (
                   <th key={h} style={{ padding: '10px 12px', textAlign: h === 'Valor' ? 'right' : 'left', color: '#374151', fontWeight: 600 }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filteredTx.length === 0 && (
-                <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}>Nenhum lançamento encontrado</td></tr>
+                <tr><td colSpan={8} style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}>Nenhum lançamento encontrado</td></tr>
               )}
               {filteredTx.map(tx => (
                 <tr key={tx.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
@@ -159,6 +188,12 @@ export default function Cartoes() {
                   </td>
                   <td style={{ padding: '8px 12px', color: '#64748b' }}>{tx.category || '—'}</td>
                   <td style={{ padding: '8px 12px', color: '#64748b', fontSize: 12 }}>{tx.end_month || '—'}</td>
+                  <td style={{ padding: '8px 12px' }}>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button onClick={() => openEdit(tx)} style={{ background: '#f1f5f9', border: 'none', borderRadius: 4, cursor: 'pointer', padding: '3px 7px', fontSize: 11 }}>✏️</button>
+                      <button onClick={() => del(tx.id)} style={{ background: '#fef2f2', border: 'none', borderRadius: 4, cursor: 'pointer', padding: '3px 7px', fontSize: 11, color: '#ef4444' }}>✕</button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -166,9 +201,59 @@ export default function Cartoes() {
         </div>
       </div>
 
+      {/* Modal de formulário */}
+      {showForm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 480, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <h2 style={{ margin: '0 0 20px', fontSize: 18, color: '#1e293b' }}>{editId ? 'Editar' : 'Novo'} Lançamento</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {[
+                ['Cartão', 'card_id', 'select-card'],
+                ['Estabelecimento', 'store', 'text'],
+                ['Valor (R$)', 'amount', 'number'],
+                ['Forma', 'payment_type', 'select-payment'],
+                ['Parcela Atual', 'installment_current', 'number'],
+                ['Total Parcelas', 'installment_total', 'number'],
+                ['Categoria', 'category', 'select-category'],
+                ['Subcategoria', 'subcategory', 'text'],
+                ['Encerra em', 'end_month', 'text'],
+              ].map(([label, field, type]) => (
+                <div key={field} style={field === 'store' || field === 'subcategory' ? { gridColumn: '1/-1' } : {}}>
+                  <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>{label}</label>
+                  {type === 'select-card'
+                    ? <select value={form[field]} onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))}
+                        style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}>
+                        <option value="">Selecione</option>
+                        {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    : type === 'select-payment'
+                    ? <select value={form[field]} onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))}
+                        style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}>
+                        {PAYMENT_TYPES.map(t => <option key={t} value={t}>{paymentLabel[t]}</option>)}
+                      </select>
+                    : type === 'select-category'
+                    ? <select value={form[field]} onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))}
+                        style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}>
+                        <option value="">Sem categoria</option>
+                        {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    : <input type={type} value={form[field]} onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))}
+                        style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }} />
+                  }
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowForm(false)} style={{ padding: '8px 18px', background: '#f1f5f9', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={save} style={{ padding: '8px 18px', background: '#38bdf8', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Metas de redução */}
       <div style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
-        <h2 style={{ margin: '0 0 16px', fontSize: 16, color: '#1e293b' }}>Metas de Redução — {MONTHS_PT[month-1]} {year}</h2>
+        <h2 style={{ margin: '0 0 16px', fontSize: 16, color: '#1e293b' }}>Metas de Redução — {MONTHS_PT[month - 1]} {year}</h2>
         {cards.map(card => {
           const total = totals[card.id] ?? 0;
           const goal = getGoal(card.id);

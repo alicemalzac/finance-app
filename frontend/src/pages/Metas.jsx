@@ -10,6 +10,10 @@ export default function Metas() {
   const [spending, setSpending] = useState([]);
   const [editing, setEditing] = useState(null);
   const [editVal, setEditVal] = useState('');
+  const [editingGoal, setEditingGoal] = useState(null);
+  const [goalVal, setGoalVal] = useState('');
+  const [showAddCat, setShowAddCat] = useState(false);
+  const [newCat, setNewCat] = useState({ name: '', monthly_goal: '' });
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -31,6 +35,20 @@ export default function Metas() {
     load();
   };
 
+  const saveGoal = async (cat, val) => {
+    await api.put(`/expenses/categories/${cat.id}`, { name: cat.name, monthly_goal: Number(val) });
+    setEditingGoal(null);
+    load();
+  };
+
+  const addCategory = async () => {
+    if (!newCat.name.trim()) return;
+    await api.post('/expenses/categories', { name: newCat.name.trim(), monthly_goal: Number(newCat.monthly_goal) || 0 });
+    setNewCat({ name: '', monthly_goal: '' });
+    setShowAddCat(false);
+    load();
+  };
+
   const totalMeta = spending.reduce((s, c) => s + (c.monthly_goal || 0), 0);
   const totalGasto = spending.reduce((s, c) => s + (c.amount || 0), 0);
 
@@ -47,8 +65,39 @@ export default function Metas() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <h1 style={{ margin: 0, fontSize: 22, color: '#1e293b' }}>Metas por Categoria</h1>
-        <MonthSelector year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <button onClick={() => setShowAddCat(true)}
+            style={{ padding: '7px 16px', background: '#38bdf8', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+            + Nova Categoria
+          </button>
+          <MonthSelector year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
+        </div>
       </div>
+
+      {showAddCat && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 360, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <h2 style={{ margin: '0 0 20px', fontSize: 18, color: '#1e293b' }}>Nova Categoria</h2>
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>Nome</label>
+                <input autoFocus value={newCat.name} onChange={e => setNewCat(p => ({ ...p, name: e.target.value }))}
+                  onKeyDown={e => e.key === 'Enter' && addCategory()}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>Meta Mensal (R$)</label>
+                <input type="number" value={newCat.monthly_goal} onChange={e => setNewCat(p => ({ ...p, monthly_goal: e.target.value }))}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowAddCat(false)} style={{ padding: '8px 18px', background: '#f1f5f9', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={addCategory} style={{ padding: '8px 18px', background: '#38bdf8', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>Adicionar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Resumo */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
@@ -82,7 +131,19 @@ export default function Metas() {
               return (
                 <tr key={cat.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                   <td style={{ padding: '10px 16px', color: '#374151', fontWeight: 500 }}>{cat.name}</td>
-                  <td style={{ padding: '10px 16px', textAlign: 'right', color: '#3b82f6' }}>{formatCurrency(cat.monthly_goal)}</td>
+                  <td style={{ padding: '10px 16px', textAlign: 'right' }}>
+                    {editingGoal === cat.id
+                      ? <input autoFocus type="number" value={goalVal}
+                          onChange={e => setGoalVal(e.target.value)}
+                          onBlur={() => saveGoal(cat, goalVal)}
+                          onKeyDown={e => { if (e.key === 'Enter') saveGoal(cat, goalVal); if (e.key === 'Escape') setEditingGoal(null); }}
+                          style={{ width: 90, padding: '2px 6px', borderRadius: 4, border: '1px solid #38bdf8', fontSize: 13, textAlign: 'right' }} />
+                      : <span onClick={() => { setEditingGoal(cat.id); setGoalVal(String(cat.monthly_goal || 0)); }}
+                          style={{ cursor: 'pointer', color: '#3b82f6', fontWeight: 500 }} title="Clique para editar">
+                          {formatCurrency(cat.monthly_goal)}
+                        </span>
+                    }
+                  </td>
                   <td style={{ padding: '10px 16px', textAlign: 'right' }}>
                     {editing === cat.id
                       ? <input autoFocus value={editVal} onChange={e => setEditVal(e.target.value)}
