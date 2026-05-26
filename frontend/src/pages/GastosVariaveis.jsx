@@ -5,6 +5,7 @@ import MonthSelector from '../components/MonthSelector';
 import { useLatestMonth } from '../utils/useLatestMonth';
 
 const emptyNewCat = { name: '', monthly_goal: '' };
+const emptyLaunch = { category_id: '', amount: '' };
 
 export default function GastosVariaveis() {
   const { year, setYear, month, setMonth } = useLatestMonth();
@@ -16,6 +17,8 @@ export default function GastosVariaveis() {
   const [goalVal, setGoalVal] = useState('');
   const [showAddCat, setShowAddCat] = useState(false);
   const [newCat, setNewCat] = useState(emptyNewCat);
+  const [showLaunch, setShowLaunch] = useState(false);
+  const [launch, setLaunch] = useState(emptyLaunch);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -42,6 +45,16 @@ export default function GastosVariaveis() {
     const cat = spending.find(c => c.id === catId);
     await api.put(`/expenses/categories/${catId}`, { name: cat.name, monthly_goal: Number(val) });
     setEditingGoal(null);
+    load();
+  };
+
+  const launchExpense = async () => {
+    if (!launch.category_id || !launch.amount) return;
+    const cat = spending.find(c => c.id === Number(launch.category_id));
+    const newAmount = (cat?.amount || 0) + Number(launch.amount);
+    await api.put(`/expenses/category-spending/${monthId}/${launch.category_id}`, { amount: newAmount });
+    setLaunch(emptyLaunch);
+    setShowLaunch(false);
     load();
   };
 
@@ -87,10 +100,14 @@ export default function GastosVariaveis() {
       </div>
 
       {/* Actions row */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginBottom: 12 }}>
         <button onClick={() => setShowAddCat(true)}
-          style={{ padding: '8px 18px', background: '#38bdf8', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+          style={{ padding: '8px 18px', background: '#f1f5f9', color: '#374151', border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
           + Nova Categoria
+        </button>
+        <button onClick={() => { setLaunch(emptyLaunch); setShowLaunch(true); }}
+          style={{ padding: '8px 18px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+          + Lançar Gasto
         </button>
       </div>
 
@@ -117,6 +134,52 @@ export default function GastosVariaveis() {
                 style={{ padding: '8px 18px', background: '#f1f5f9', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Cancelar</button>
               <button onClick={addCategory}
                 style={{ padding: '8px 18px', background: '#38bdf8', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>Adicionar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Launch expense modal */}
+      {showLaunch && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 380, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <h2 style={{ margin: '0 0 20px', fontSize: 18, color: '#1e293b' }}>Lançar Gasto</h2>
+            <div style={{ display: 'grid', gap: 14 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>Categoria</label>
+                <select autoFocus value={launch.category_id} onChange={e => setLaunch(p => ({ ...p, category_id: e.target.value }))}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box' }}>
+                  <option value="">Selecione uma categoria</option>
+                  {spending.map(cat => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}{cat.amount > 0 ? ` — já: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cat.amount)}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>Valor (R$)</label>
+                <input autoFocus={false} type="number" value={launch.amount} onChange={e => setLaunch(p => ({ ...p, amount: e.target.value }))}
+                  onKeyDown={e => e.key === 'Enter' && launchExpense()}
+                  placeholder="0,00"
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box' }} />
+              </div>
+              {launch.category_id && launch.amount && (() => {
+                const cat = spending.find(c => c.id === Number(launch.category_id));
+                const newTotal = (cat?.amount || 0) + Number(launch.amount);
+                return (
+                  <div style={{ padding: '8px 12px', background: '#f0fdf4', borderRadius: 6, border: '1px solid #bbf7d0', fontSize: 13, color: '#166534' }}>
+                    Novo total em <strong>{cat?.name}</strong>: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(newTotal)}
+                    {cat?.monthly_goal > 0 && ` (${Math.round((newTotal / cat.monthly_goal) * 100)}% da meta)`}
+                  </div>
+                );
+              })()}
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'flex-end' }}>
+              <button onClick={() => { setShowLaunch(false); setLaunch(emptyLaunch); }}
+                style={{ padding: '8px 18px', background: '#f1f5f9', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={launchExpense}
+                style={{ padding: '8px 18px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>Lançar</button>
             </div>
           </div>
         </div>
