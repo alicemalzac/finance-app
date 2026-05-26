@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls /Users/alicemalzac/.claude/ 2>/dev/null)",
+      "Read(//Users/alicemalzac/.claude/**)",
+      "Bash(python3 -c \"import sys,json; lines=sys.stdin.readlines\\(\\); [print\\(json.loads\\(l\\)['message']['content'][0]['text'][:200] if json.loads\\(l\\)['message']['content'] and isinstance\\(json.loads\\(l\\)['message']['content'][0], dict\\) and 'text' in json.loads\\(l\\)['message']['content'][0] else ''\\) for l in lines]\")",
+      "Bash(grep -v '^$')",
+      "Bash(python3 -c ' *)",
+      "Bash(pkill -f \"finance-app\")",
+      "Bash(pkill -f \"node.*index.js\")",
+      "Bash(pkill -f \"vite\")",
+      "Bash(node --experimental-sqlite backend/src/index.js)",
+      "Bash(echo \"Backend PID: $!\")",
+      "Bash(sleep 2 && cat /tmp/backend.log)",
+      "Read(//private/tmp/**)",
+      "Bash(npm run *)",
+      "Bash(echo \"Frontend PID: $!\")",
+      "Bash(curl -s -X POST http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"alicelinsc.malzac@gmail.com\",\"password\":\"finance2025\"}')",
+      "Bash(python3 -m json.tool)"
+    ]
+  }
+}
