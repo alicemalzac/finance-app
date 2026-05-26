@@ -22,6 +22,7 @@ export default function Dashboard() {
   const { year, setYear, month, setMonth } = useLatestMonth();
   const [data, setData] = useState(null);
   const [varTotal, setVarTotal] = useState(0);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [editing, setEditing] = useState(null);
   const [editVal, setEditVal] = useState('');
   const [loading, setLoading] = useState(true);
@@ -34,14 +35,16 @@ export default function Dashboard() {
     try {
       const res = await api.get(`/months/${year}/${month}`);
       setData(res.data);
-      const [cardRes, cashRes] = await Promise.all([
+      const [cardRes, cashRes, metaRes] = await Promise.all([
         api.get(`/cards/transactions/${res.data.id}`),
         api.get(`/cash/${res.data.id}`),
+        api.get('/meta/last-updated'),
       ]);
       setVarTotal(
         cardRes.data.reduce((s, t) => s + t.amount, 0) +
         cashRes.data.reduce((s, t) => s + t.amount, 0)
       );
+      setLastUpdated(metaRes.data.last_updated_at);
     } catch {
       setData(null);
     }
@@ -99,7 +102,14 @@ export default function Dashboard() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <h1 style={{ margin: 0, fontSize: 22, color: '#1e293b' }}>{MONTHS_PT[month - 1]} {year}</h1>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 22, color: '#1e293b' }}>{MONTHS_PT[month - 1]} {year}</h1>
+          {lastUpdated && (
+            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 3 }}>
+              Última alteração: {new Date(lastUpdated).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </div>
+          )}
+        </div>
         <MonthSelector year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
       </div>
 

@@ -9,13 +9,17 @@ export function useLatestMonth() {
   useEffect(() => {
     api.get('/months').then(res => {
       if (res.data.length > 0) {
-        const latest = res.data[res.data.length - 1];
-        setYear(latest.year);
-        setMonth(latest.month);
+        const now = new Date();
+        const current = res.data.find(m => m.year === now.getFullYear() && m.month === now.getMonth() + 1);
+        const fallback = res.data[res.data.length - 1];
+        const pick = current || fallback;
+        setYear(pick.year);
+        setMonth(pick.month);
       }
     }).catch(() => {
-      setYear(2025);
-      setMonth(5);
+      const now = new Date();
+      setYear(now.getFullYear());
+      setMonth(now.getMonth() + 1);
     });
   }, []);
 

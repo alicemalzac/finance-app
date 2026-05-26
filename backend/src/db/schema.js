@@ -94,6 +94,11 @@ db.exec(`
     subcategory TEXT,
     FOREIGN KEY (month_id) REFERENCES months(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS app_meta (
+    key TEXT PRIMARY KEY,
+    value TEXT
+  );
 `);
 
 module.exports = db;
