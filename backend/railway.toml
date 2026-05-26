@@ -1,6 +1,9 @@
 [build]
 builder = "NIXPACKS"
 
+[build.env]
+NIXPACKS_NODE_VERSION = "22"
+
 [deploy]
 startCommand = "node --experimental-sqlite src/index.js"
 restartPolicyType = "ON_FAILURE"
