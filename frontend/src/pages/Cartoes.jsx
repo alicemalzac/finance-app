@@ -207,41 +207,87 @@ export default function Cartoes() {
           <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 480, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
             <h2 style={{ margin: '0 0 20px', fontSize: 18, color: '#1e293b' }}>{editId ? 'Editar' : 'Novo'} Lançamento</h2>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              {[
-                ['Cartão', 'card_id', 'select-card'],
-                ['Estabelecimento', 'store', 'text'],
-                ['Valor (R$)', 'amount', 'number'],
-                ['Forma', 'payment_type', 'select-payment'],
-                ['Parcela Atual', 'installment_current', 'number'],
-                ['Total Parcelas', 'installment_total', 'number'],
-                ['Categoria', 'category', 'select-category'],
-                ['Subcategoria', 'subcategory', 'text'],
-                ['Encerra em', 'end_month', 'text'],
-              ].map(([label, field, type]) => (
-                <div key={field} style={field === 'store' || field === 'subcategory' ? { gridColumn: '1/-1' } : {}}>
-                  <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>{label}</label>
-                  {type === 'select-card'
-                    ? <select value={form[field]} onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))}
-                        style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}>
-                        <option value="">Selecione</option>
-                        {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
-                    : type === 'select-payment'
-                    ? <select value={form[field]} onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))}
-                        style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}>
-                        {PAYMENT_TYPES.map(t => <option key={t} value={t}>{paymentLabel[t]}</option>)}
-                      </select>
-                    : type === 'select-category'
-                    ? <select value={form[field]} onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))}
-                        style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}>
-                        <option value="">Sem categoria</option>
-                        {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    : <input type={type} value={form[field]} onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))}
-                        style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }} />
-                  }
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>Cartão</label>
+                <select value={form.card_id} onChange={e => setForm(p => ({ ...p, card_id: e.target.value }))}
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}>
+                  <option value="">Selecione</option>
+                  {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>Forma</label>
+                <select value={form.payment_type} onChange={e => setForm(p => ({ ...p, payment_type: e.target.value }))}
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}>
+                  {PAYMENT_TYPES.map(t => <option key={t} value={t}>{paymentLabel[t]}</option>)}
+                </select>
+              </div>
+
+              <div style={{ gridColumn: '1/-1' }}>
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>Estabelecimento</label>
+                <input type="text" value={form.store} onChange={e => setForm(p => ({ ...p, store: e.target.value }))}
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>Valor (R$)</label>
+                <input type="number" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))}
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }} />
+              </div>
+
+              {form.payment_type === 'parcelado' && (
+                !editId ? (
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>Nº de Parcelas</label>
+                    <input type="number" value={form.installment_total} onChange={e => setForm(p => ({ ...p, installment_total: e.target.value }))}
+                      style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }} />
+                  </div>
+                ) : (
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>Parcela Atual</label>
+                    <input type="number" value={form.installment_current} onChange={e => setForm(p => ({ ...p, installment_current: e.target.value }))}
+                      style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }} />
+                  </div>
+                )
+              )}
+
+              {form.payment_type === 'parcelado' && editId && (
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>Total Parcelas</label>
+                  <input type="number" value={form.installment_total} onChange={e => setForm(p => ({ ...p, installment_total: e.target.value }))}
+                    style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }} />
                 </div>
-              ))}
+              )}
+
+              {form.payment_type === 'parcelado' && !editId && (
+                <div style={{ gridColumn: '1/-1', padding: '8px 12px', background: '#f0fdf4', borderRadius: 6, border: '1px solid #bbf7d0' }}>
+                  <span style={{ fontSize: 12, color: '#166534' }}>✓ As parcelas seguintes serão criadas automaticamente nos meses seguintes.</span>
+                </div>
+              )}
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>Categoria</label>
+                <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}>
+                  <option value="">Sem categoria</option>
+                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+
+              <div style={{ gridColumn: '1/-1' }}>
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>Subcategoria</label>
+                <input type="text" value={form.subcategory} onChange={e => setForm(p => ({ ...p, subcategory: e.target.value }))}
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>Encerra em</label>
+                <input type="text" value={form.end_month} onChange={e => setForm(p => ({ ...p, end_month: e.target.value }))}
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }} />
+              </div>
+
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'flex-end' }}>
               <button onClick={() => setShowForm(false)} style={{ padding: '8px 18px', background: '#f1f5f9', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Cancelar</button>
