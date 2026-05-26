@@ -3,12 +3,13 @@ import api from '../utils/api';
 import { formatCurrency, MONTHS_PT } from '../utils/format';
 import MonthSelector from '../components/MonthSelector';
 import { useLatestMonth } from '../utils/useLatestMonth';
+import { useCategories } from '../utils/useCategories';
 
-const CATEGORIES = ['Beleza','Alimentação','Mercado','Transporte','Saúde','Pet','Lazer','Outros'];
 const emptyForm = { day: '', description: '', amount: '', category: '', subcategory: '' };
 
 export default function Dinheiro() {
   const { year, setYear, month, setMonth } = useLatestMonth();
+  const categories = useCategories();
   const [monthId, setMonthId] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [showForm, setShowForm] = useState(false);
@@ -79,7 +80,23 @@ export default function Dinheiro() {
           <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 400, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
             <h2 style={{ margin: '0 0 20px', fontSize: 18, color: '#1e293b' }}>{editId ? 'Editar' : 'Novo'} Gasto</h2>
             <div style={{ display: 'grid', gap: 12 }}>
-              {[['Dia', 'day', 'number'], ['Descrição', 'description', 'text'], ['Valor (R$)', 'amount', 'number'], ['Subcategoria', 'subcategory', 'text']].map(([label, field, type]) => (
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>Dia</label>
+                <input
+                  type="date"
+                  value={form.day && year && month
+                    ? `${year}-${String(month).padStart(2,'0')}-${String(form.day).padStart(2,'0')}`
+                    : ''}
+                  min={`${year}-${String(month).padStart(2,'0')}-01`}
+                  max={`${year}-${String(month).padStart(2,'0')}-31`}
+                  onChange={e => {
+                    const d = e.target.value ? new Date(e.target.value + 'T12:00:00').getDate() : '';
+                    setForm(p => ({ ...p, day: d }));
+                  }}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
+                />
+              </div>
+              {[['Descrição', 'description', 'text'], ['Valor (R$)', 'amount', 'number'], ['Subcategoria', 'subcategory', 'text']].map(([label, field, type]) => (
                 <div key={field}>
                   <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>{label}</label>
                   <input type={type} value={form[field]} onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))}
@@ -91,7 +108,7 @@ export default function Dinheiro() {
                 <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
                   style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}>
                   <option value="">Sem categoria</option>
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                 </select>
               </div>
             </div>

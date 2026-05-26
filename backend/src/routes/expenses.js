@@ -5,34 +5,7 @@ const { authMiddleware } = require('../middleware/auth');
 const router = express.Router();
 router.use(authMiddleware);
 
-// Contas fixas de um mês
-router.get('/:monthId', (req, res) => {
-  const { monthId } = req.params;
-  const expenses = db.prepare('SELECT * FROM fixed_expenses WHERE month_id = ? ORDER BY category').all(monthId);
-  res.json(expenses);
-});
-
-router.post('/:monthId', (req, res) => {
-  const { monthId } = req.params;
-  const { category, amount } = req.body;
-  if (!category) return res.status(400).json({ error: 'Categoria obrigatória' });
-  const result = db.prepare('INSERT INTO fixed_expenses (month_id, category, amount) VALUES (?, ?, ?)').run(monthId, category, amount ?? 0);
-  res.status(201).json({ id: result.lastInsertRowid, month_id: monthId, category, amount: amount ?? 0 });
-});
-
-router.put('/:id', (req, res) => {
-  const { id } = req.params;
-  const { category, amount } = req.body;
-  db.prepare('UPDATE fixed_expenses SET category=?, amount=? WHERE id=?').run(category, amount, id);
-  res.json({ id, category, amount });
-});
-
-router.delete('/:id', (req, res) => {
-  db.prepare('DELETE FROM fixed_expenses WHERE id=?').run(req.params.id);
-  res.json({ ok: true });
-});
-
-// Categorias de gastos variáveis
+// Categorias de gastos variáveis — rotas específicas ANTES das parametrizadas
 router.get('/categories/all', (req, res) => {
   const cats = db.prepare('SELECT * FROM expense_categories ORDER BY sort_order').all();
   res.json(cats);
@@ -54,7 +27,7 @@ router.put('/categories/:id', (req, res) => {
   res.json({ id, name, monthly_goal });
 });
 
-// Gastos por categoria em um mês
+// Gastos por categoria em um mês — também antes de /:monthId
 router.get('/category-spending/:monthId', (req, res) => {
   const { monthId } = req.params;
   const spending = db.prepare(`
@@ -84,6 +57,33 @@ router.put('/category-spending/:monthId/:categoryId', (req, res) => {
     const result = db.prepare('INSERT INTO category_spending (month_id, category_id, amount) VALUES (?,?,?)').run(monthId, categoryId, amount);
     res.status(201).json({ id: result.lastInsertRowid, month_id: monthId, category_id: categoryId, amount });
   }
+});
+
+// Contas fixas — rotas parametrizadas por último
+router.get('/:monthId', (req, res) => {
+  const { monthId } = req.params;
+  const expenses = db.prepare('SELECT * FROM fixed_expenses WHERE month_id = ? ORDER BY category').all(monthId);
+  res.json(expenses);
+});
+
+router.post('/:monthId', (req, res) => {
+  const { monthId } = req.params;
+  const { category, amount } = req.body;
+  if (!category) return res.status(400).json({ error: 'Categoria obrigatória' });
+  const result = db.prepare('INSERT INTO fixed_expenses (month_id, category, amount) VALUES (?, ?, ?)').run(monthId, category, amount ?? 0);
+  res.status(201).json({ id: result.lastInsertRowid, month_id: monthId, category, amount: amount ?? 0 });
+});
+
+router.put('/:id', (req, res) => {
+  const { id } = req.params;
+  const { category, amount } = req.body;
+  db.prepare('UPDATE fixed_expenses SET category=?, amount=? WHERE id=?').run(category, amount, id);
+  res.json({ id, category, amount });
+});
+
+router.delete('/:id', (req, res) => {
+  db.prepare('DELETE FROM fixed_expenses WHERE id=?').run(req.params.id);
+  res.json({ ok: true });
 });
 
 module.exports = router;

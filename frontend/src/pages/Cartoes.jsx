@@ -3,10 +3,7 @@ import api from '../utils/api';
 import { formatCurrency, MONTHS_PT, MONTHS_SHORT, formatEndMonth } from '../utils/format';
 import MonthSelector from '../components/MonthSelector';
 import { useLatestMonth } from '../utils/useLatestMonth';
-
-const CATEGORIES = ['Mercado','Streamings','Beleza','Farmácia','Gasolina','Pet','Estacionamento','Restaurantes',
-  'Compras','Consulta Médica','Uber','Ifood','Atividade Física','Vestuário','Suplementos','Viagem',
-  'Educação/Profissional','Presentes','Taxas','Extra','????'];
+import { useCategories } from '../utils/useCategories';
 const PAYMENT_TYPES = ['avista', 'parcelado', 'recorrente'];
 const paymentLabel = { avista: 'À vista', parcelado: 'Parcelado', recorrente: 'Recorrente' };
 const paymentColor = { avista: '#64748b', parcelado: '#f59e0b', recorrente: '#3b82f6' };
@@ -14,6 +11,7 @@ const emptyForm = { card_id: '', store: '', amount: '', installment_current: 1, 
 
 export default function Cartoes() {
   const { year, setYear, month, setMonth } = useLatestMonth();
+  const categories = useCategories();
   const [monthId, setMonthId] = useState(null);
   const [cards, setCards] = useState([]);
   const [goals, setGoals] = useState([]);
@@ -272,7 +270,7 @@ export default function Cartoes() {
                 <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
                   style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}>
                   <option value="">Sem categoria</option>
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                 </select>
               </div>
 
