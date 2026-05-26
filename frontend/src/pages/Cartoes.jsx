@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../utils/api';
-import { formatCurrency, MONTHS_PT } from '../utils/format';
+import { formatCurrency, MONTHS_PT, MONTHS_SHORT, formatEndMonth } from '../utils/format';
 import MonthSelector from '../components/MonthSelector';
 import { useLatestMonth } from '../utils/useLatestMonth';
 
@@ -187,7 +187,7 @@ export default function Cartoes() {
                     {tx.payment_type === 'parcelado' ? `${tx.installment_current}/${tx.installment_total}` : '—'}
                   </td>
                   <td style={{ padding: '8px 12px', color: '#64748b' }}>{tx.category || '—'}</td>
-                  <td style={{ padding: '8px 12px', color: '#64748b', fontSize: 12 }}>{tx.end_month || '—'}</td>
+                  <td style={{ padding: '8px 12px', color: '#64748b', fontSize: 12 }}>{formatEndMonth(tx.end_month) || '—'}</td>
                   <td style={{ padding: '8px 12px' }}>
                     <div style={{ display: 'flex', gap: 4 }}>
                       <button onClick={() => openEdit(tx)} style={{ background: '#f1f5f9', border: 'none', borderRadius: 4, cursor: 'pointer', padding: '3px 7px', fontSize: 11 }}>✏️</button>
@@ -282,10 +282,30 @@ export default function Cartoes() {
                   style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }} />
               </div>
 
-              <div>
+              <div style={{ gridColumn: '1/-1' }}>
                 <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>Encerra em</label>
-                <input type="text" value={form.end_month} onChange={e => setForm(p => ({ ...p, end_month: e.target.value }))}
-                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }} />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <select
+                    value={form.end_month ? form.end_month.split('-')[1] || '' : ''}
+                    onChange={e => {
+                      const y = form.end_month ? form.end_month.split('-')[0] : String(new Date().getFullYear());
+                      setForm(p => ({ ...p, end_month: e.target.value ? `${y}-${e.target.value}` : '' }));
+                    }}
+                    style={{ flex: 1, padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}>
+                    <option value="">Sem encerramento</option>
+                    {MONTHS_SHORT.map((m, i) => <option key={i} value={String(i + 1).padStart(2, '0')}>{m}</option>)}
+                  </select>
+                  <select
+                    value={form.end_month ? form.end_month.split('-')[0] || '' : ''}
+                    onChange={e => {
+                      const mo = form.end_month ? form.end_month.split('-')[1] : '';
+                      setForm(p => ({ ...p, end_month: mo ? `${e.target.value}-${mo}` : '' }));
+                    }}
+                    style={{ width: 90, padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}>
+                    <option value="">Ano</option>
+                    {[2026, 2027, 2028, 2029].map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
               </div>
 
             </div>
